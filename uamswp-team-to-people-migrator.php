@@ -2,7 +2,7 @@
 /**
  * Plugin Name: UAMSWP Team → People Migrator
  * Description: One-time migration tool that copies entries from the Team Showcase plugin (tshowcase) into the People Showcase plugin (uamspeople) on the same site. Run from Tools → Team → People Migration.
- * Version: 1.0.0
+ * Version: 1.2
  * Author: UAMS Web
  * Text Domain: uamswp-t2p
  *
@@ -285,12 +285,15 @@ function uamswp_t2p_migrate_post( $old_post_id, $dry_run = true ) {
 
 	if ( ! $dry_run ) {
 		$postarr = array(
-			'post_type'    => UAMSWP_T2P_DEST_CPT,
-			'post_title'   => $old_post->post_title,
-			'post_content' => $old_post->post_content,
-			'post_excerpt' => $old_post->post_excerpt,
-			'post_status'  => $old_post->post_status,
-			'menu_order'   => $old_post->menu_order,
+			'post_type'     => UAMSWP_T2P_DEST_CPT,
+			'post_title'    => $old_post->post_title,
+			'post_content'  => $old_post->post_content,
+			'post_excerpt'  => $old_post->post_excerpt,
+			'post_status'   => $old_post->post_status,
+			'menu_order'    => $old_post->menu_order,
+			'post_author'   => $old_post->post_author,
+			'post_date'     => $old_post->post_date,
+			'post_date_gmt' => $old_post->post_date_gmt,
 		);
 
 		$new_post_id = wp_insert_post( $postarr, true );
