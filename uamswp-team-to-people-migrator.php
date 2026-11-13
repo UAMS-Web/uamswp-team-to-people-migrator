@@ -1,6 +1,7 @@
 <?php
 /**
  * Plugin Name: UAMSWP Team → People Migrator
+ * Plugin URI: https://github.com/UAMS-Web/uamswp-team-to-people-migrator
  * Description: One-time migration tool that copies entries from the Team Showcase plugin (tshowcase) into the People Showcase plugin (uamspeople) on the same site. Run from Tools → Team → People Migration.
  * Version: 1.2.0
  * Requires PHP: 8.2
