@@ -622,6 +622,8 @@ function uamswp_t2p_render_admin_page(): void
     $action = isset($_POST['uamswp_t2p_action']) ? sanitize_text_field(wp_unslash($_POST['uamswp_t2p_action'])) : '';
     $force = isset($_POST['uamswp_t2p_force']);
     $results = [];
+    // Only read while results is non-empty, and every path that fills results assigns it first, so this starting value is never used.
+    // @pest-mutate-ignore:TrueToFalse
     $dry_run = true;
 
     if ($action && check_admin_referer('uamswp_t2p_run', 'uamswp_t2p_nonce')) {
