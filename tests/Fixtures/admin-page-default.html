@@ -1,0 +1,99 @@
+<div class="wrap">
+<h1>H(Team Showcase → People Showcase Migration)</h1>
+<p>H(Copies entries from Team Showcase (tshowcase) into People Showcase (uamspeople): title, content, featured image, mapped custom fields, and taxonomy terms (matching terms are reused, new ones are created). Team Showcase entries are left exactly as they are - this only creates new People Showcase posts.)</p>
+<p>
+<strong>H(Posts still pending migration:)</strong> h(0) </p>
+<form method="post">
+<nonce uamswp_t2p_run uamswp_t2p_nonce>
+<label>
+<input type="checkbox" name="uamswp_t2p_force" value="1" UNCHECKED /> H(Force re-migrate (also process posts already flagged as migrated - use with care, this will create duplicates)) </label>
+<p>
+<button type="submit" name="uamswp_t2p_action" value="preview" class="button button-secondary"> H(Preview (dry run - no changes made)) </button>
+<button type="submit" name="uamswp_t2p_action" value="run" class="button button-primary" onclick="return confirm('j(This will create new People Showcase entries. The matching Team Showcase entries will be left untouched. Continue?)');"> H(Run Migration) </button>
+</p>
+</form>
+<hr />
+<h2>H(Shortcode Finder & Updater)</h2>
+<p> H(Finds [show-team], [show-team-search], [show-team-users], [show-team-count], and [show-team-info] shortcodes in post content and classic Text/Custom HTML widgets, and renames them to their show-people equivalents. On the main [show-team] shortcode, any ids="" or exclude="" post-ID lists are also translated to the matching People Showcase post IDs, based on posts already migrated above.) </p>
+<p><em>H(This only scans post_content and classic widgets. If pages are built with a page builder that stores content elsewhere, run a scan there too.)</em></p>
+<form method="post">
+<nonce uamswp_t2p_sc_run uamswp_t2p_sc_nonce>
+<p>
+<button type="submit" name="uamswp_t2p_sc_action" value="scan" class="button button-secondary"> H(Scan Site) </button>
+<button type="submit" name="uamswp_t2p_sc_action" value="update" class="button button-primary" onclick="return confirm('j(This will rewrite post content and widget content wherever a show-team shortcode is found. Continue?)');"> H(Update All Found Shortcodes) </button>
+</p>
+</form>
+<hr />
+<h2>H(Field mapping reference)</h2>
+<table class="widefat striped" style="max-width:700px;">
+<thead>
+<tr>
+<th>H(Team Showcase (_ts))</th>
+<th>H(People Showcase (_ps))</th>
+<th>H(Notes)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>h(_tsposition)</code></td>
+<td><code>h(_psposition)</code></td>
+<td> &#8212; </td>
+</tr>
+<tr>
+<td><code>h(_tsemail)</code></td>
+<td><code>h(_psemail)</code></td>
+<td> &#8212; </td>
+</tr>
+<tr>
+<td><code>h(_tslocation)</code></td>
+<td><code>h(_pslocation)</code></td>
+<td> &#8212; </td>
+</tr>
+<tr>
+<td><code>h(_tstel)</code></td>
+<td><code>h(_pstel)</code></td>
+<td> &#8212; </td>
+</tr>
+<tr>
+<td><code>h(_tsfreehtml)</code></td>
+<td><code>h(_psfreehtml)</code></td>
+<td> &#8212; </td>
+</tr>
+<tr>
+<td><code>h(_tspersonal)</code></td>
+<td><code>h(_pspersonal)</code></td>
+<td> H(Field relabeled "Provider Profile URL" in People Showcase) </td>
+</tr>
+<tr>
+<td><code>h(_tspersonalanchor)</code></td>
+<td><code>h(_pspersonalanchor)</code></td>
+<td> &#8212; </td>
+</tr>
+<tr>
+<td><code>h(_tsuser)</code></td>
+<td><code>h(_psuser)</code></td>
+<td> &#8212; </td>
+</tr>
+<tr>
+<td><code>h(_tstwitter)</code></td>
+<td><code>h(_pstwitter)</code></td>
+<td> H(URL converted to bare username) </td>
+</tr>
+<tr>
+<td><code>h(_tsyoutube)</code></td>
+<td><code>h(_psyoutube)</code></td>
+<td> &#8212; </td>
+</tr>
+<tr>
+<td><em>H((generated from title))</em></td>
+<td><code>_pssorttext</code></td>
+<td>H(No Team Showcase equivalent - auto-generated, worth reviewing)</td>
+</tr>
+<tr>
+<td><code>_ts{social network}</code>, <code>_tsemailico</code></td>
+<td><code>_ps{social network}</code></td>
+<td>H(People Showcase has social networks disabled by default - values are preserved as raw postmeta in case they get re-enabled)</td>
+</tr>
+</tbody>
+</table>
+</div>
