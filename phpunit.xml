@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="tests/bootstrap.php"
+         colors="true"
+         failOnWarning="true"
+         failOnRisky="true"
+         failOnEmptyTestSuite="true"
+         beStrictAboutOutputDuringTests="true">
+    <!--
+        The Unit suite only, on Pest 5. No WordPress, no database: WordPress functions
+        are mocked with Brain Monkey.
+
+        There is no Integration suite yet; when one is added it gets its own Composer
+        setup under tests/Integration, per the tests skill.
+    -->
+    <testsuites>
+        <testsuite name="Unit">
+            <directory suffix="Test.php">./tests/Unit</directory>
+        </testsuite>
+    </testsuites>
+    <source>
+        <include>
+            <file>./uamswp-team-to-people-migrator.php</file>
+        </include>
+    </source>
+</phpunit>

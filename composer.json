@@ -1,0 +1,27 @@
+{
+    "name": "uams-web/uamswp-team-to-people-migrator",
+    "description": "One-time migration tool that copies Team Showcase entries into People Showcase on the same site. Development dependencies only: nothing is installed into production.",
+    "type": "wordpress-plugin",
+    "license": "GPL-2.0-or-later",
+    "require-dev": {
+        "brain/monkey": "^2.7",
+        "pestphp/pest": "^5.3"
+    },
+    "config": {
+        "platform": {
+            "php": "8.4.27"
+        },
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    },
+    "scripts": {
+        "test": "@test:unit",
+        "test:unit": "pest"
+    },
+    "scripts-descriptions": {
+        "test": "Run the suite.",
+        "test:unit": "Run the Pest suite that needs no WordPress and no database."
+    }
+}
