@@ -10,3 +10,11 @@ The suite is Pest 5 with Brain Monkey: WordPress functions are mocked, so it nee
 composer install
 vendor/bin/pest
 ```
+
+## Credits
+
+Developed and maintained by UAMS Web Services.
+
+Developers:
+
+- Josh Daugherty
