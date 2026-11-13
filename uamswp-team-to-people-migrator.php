@@ -291,7 +291,6 @@ function uamswp_t2p_migrate_post($old_post_id, $dry_run = true): WP_Error|array
         'meta_unmapped' => uamswp_t2p_get_unmapped_meta($old_post_id),
         'terms' => [],
         'thumbnail' => (int) get_post_thumbnail_id($old_post_id),
-        'warnings' => [],
     ];
 
     if (! empty($result['meta_unmapped'])) {
@@ -343,6 +342,8 @@ function uamswp_t2p_migrate_post($old_post_id, $dry_run = true): WP_Error|array
             continue;
         }
 
+        // Every transform in the field map names a function defined in this file, so the operands agree whenever one is set.
+        // @pest-mutate-ignore:BooleanAndToBooleanOr
         if ($transform && function_exists($transform)) {
             $value = call_user_func($transform, $value);
         }
@@ -420,7 +421,10 @@ function uamswp_t2p_build_id_map(): array
 
     $map = [];
     foreach ($rows as $row) {
-        $map[(int) $row->meta_value] = (int) $row->post_id; // old_id => new_id
+        // The meta value was written from an integer post ID, so it is already a canonical decimal string and PHP casts the key itself.
+        // @pest-mutate-ignore:RemoveIntegerCast
+        $old_id = (int) $row->meta_value;
+        $map[$old_id] = (int) $row->post_id; // old_id => new_id
     }
 
     return $map;

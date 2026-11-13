@@ -19,6 +19,12 @@ require_once __DIR__.'/../vendor/autoload.php';
 require_once __DIR__.'/../vendor/antecedent/patchwork/Patchwork.php';
 
 /*
+ * WordPress' WP_Error is not loaded, so the plugin's `new WP_Error(...)` and
+ * Brain Monkey's is_wp_error() would hit an undefined class without a stand-in.
+ */
+require_once __DIR__.'/Support/WP_Error.php';
+
+/*
  * The plugin file opens with `if ( ! defined( 'ABSPATH' ) ) { exit; }`. Define
  * it so the file loads, pointing at a directory that is not a WordPress install.
  */
