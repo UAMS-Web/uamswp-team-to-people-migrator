@@ -18,3 +18,7 @@ Developed and maintained by UAMS Web Services.
 Developers:
 
 - Josh Daugherty
+
+## License
+
+GPL-2.0-or-later. See [`LICENSE`](LICENSE).
