@@ -8,6 +8,10 @@
  * Author: UAMS Web Services
  * Author URI: https://communications.uams.edu/web/
  * Text Domain: uamswp-t2p
+ * License: GPL-2.0-or-later
+ * License URI: https://www.gnu.org/licenses/gpl-2.0.html
+ *
+ * Copyright 2026 UAMS Web Services
  *
  * HOW THIS WORKS
  * --------------
