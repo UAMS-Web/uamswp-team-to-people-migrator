@@ -532,6 +532,8 @@ function uamswp_t2p_scan_shortcode_locations(): array
             if (! is_array($widget)) {
                 continue;
             }
+            // A widget with neither field gets the placeholder, and no placeholder contains a show-team tag, so the next check skips it all the same.
+            // @pest-mutate-ignore:EmptyStringToNotEmpty
             $text = $widget['content'] ?? $widget['text'] ?? '';
             if (! is_string($text) || ! uamswp_t2p_content_has_shortcode($text)) {
                 continue;
