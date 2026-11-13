@@ -110,13 +110,14 @@ function uamswp_t2p_get_skip_keys(): array
 
 function uamswp_t2p_transform_twitter($value): string
 {
+    // The file is not strict_types, so trim() coerces a scalar to a string itself and the cast changes nothing.
+    // @pest-mutate-ignore:RemoveStringCast
     $value = trim((string) $value);
-    if ($value === '') {
-        return '';
-    }
     // Team Showcase stored a full profile URL; People Showcase wants just the handle.
     $path = wp_parse_url($value, PHP_URL_PATH);
     if ($path) {
+        // end() ignores the keys, so re-indexing the filtered segments changes nothing.
+        // @pest-mutate-ignore:UnwrapArrayValues
         $parts = array_values(array_filter(explode('/', $path)));
         if ($parts !== []) {
             return end($parts);
@@ -483,6 +484,8 @@ function uamswp_t2p_translate_id_attributes($content, $id_map, &$untranslated): 
 
 function uamswp_t2p_content_has_shortcode($content): bool
 {
+    // The file is not strict_types, so the bool return type coerces preg_match()'s 0 or 1 itself and the cast changes nothing.
+    // @pest-mutate-ignore:RemoveBooleanCast
     return (bool) preg_match('/\[show-team\b/', $content);
 }
 

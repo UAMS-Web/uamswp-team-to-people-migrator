@@ -26,6 +26,17 @@ use function Brain\Monkey\tearDown;
 uses()
     ->beforeEach(function (): void {
         setUp();
+
+        /*
+         * Load the plugin file once per process, inside the first test, because
+         * Brain Monkey's add_action() exists only while a test runs. What it
+         * registered is recorded here, since the hook is gone after tearDown().
+         */
+        if (! defined('UAMSWP_T2P_SRC_CPT')) {
+            $root = dirname(__DIR__);
+            require $root.'/uamswp-team-to-people-migrator.php';
+            $GLOBALS['uamswp_t2p_admin_menu_priority'] = has_action('admin_menu', 'uamswp_t2p_admin_menu');
+        }
     })
     ->afterEach(function (): void {
         $this->addToAssertionCount(Mockery::getContainer()->mockery_getExpectationCount());
