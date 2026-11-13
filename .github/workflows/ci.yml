@@ -5,8 +5,8 @@ name: CI
 # The lint and unit chain is the shared one, `UAMS-Web/uams-ci-workflows`, called by the
 # `checks` job. One definition serves every UAMS-Web repository, so this plugin does not
 # carry a copy that drifts. The call switches on the two jobs only a plugin runs
-# (`floor-lint`, `download-archive`), runs on Linux only, leaves mutation testing off, and
-# runs the plugin's unit suite as `composer test:unit`. `phpcs` stays off: this plugin has
+# (`floor-lint`, `download-archive`), runs on Linux only, runs mutation testing (the plugin file
+# when a pull request changes it, everything on `workflow_dispatch`), and runs the plugin's unit suite as `composer test:unit`. `phpcs` stays off: this plugin has
 # no PHPCS configuration. The chain's own header lists every input and its default.
 #
 # The last job, `CI`, is the one check a ruleset requires from this workflow (with the two
@@ -19,7 +19,7 @@ name: CI
 #
 # What the plugin carries for the call, because the called jobs check out this repository:
 # `.github/actions/setup/action.yml`, the synced `.claude/skills` scripts, and the Composer
-# scripts `test:pint`, `test:refactor`, `stan` and `test:unit`.
+# scripts `test:pint`, `test:refactor`, `stan`, `test:unit` and `mutate`.
 
 on:
   pull_request:
@@ -44,7 +44,9 @@ jobs:
     uses: UAMS-Web/uams-ci-workflows/.github/workflows/ci.yml@v0.10.1
     with:
       linux-only: true
-      mutate: false
+      # The plugin is one file, so the chain's default `src` does not exist here.
+      mutate-paths: uamswp-team-to-people-migrator.php
+      mutate-ignore-paths: uamswp-team-to-people-migrator.php tests
       floor-lint: true
       floor-lint-php: '8.2'
       # The plugin file is the only shipped PHP; tests and vendor are not parsed under the floor.

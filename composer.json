@@ -27,6 +27,7 @@
     "scripts": {
         "test": "@test:unit",
         "test:unit": "pest",
+        "mutate": "pest tests/Unit/AdminMenuTest.php tests/Unit/AdminPageTest.php tests/Unit/HelpersTest.php tests/Unit/LocationsTest.php tests/Unit/MigratePostTest.php tests/Unit/MigrationTest.php tests/Unit/ShortcodeTest.php --mutate --path=uamswp-team-to-people-migrator.php",
         "stan": "phpstan analyse --no-progress --memory-limit=2G",
         "refactor": "rector",
         "refactor:sweep": "rector --clear-cache --config=rector-sweep.php",
@@ -38,6 +39,7 @@
     "scripts-descriptions": {
         "test": "Run the suite.",
         "test:unit": "Run the Pest suite that needs no WordPress and no database.",
+        "mutate": "Run mutation testing over the plugin file (the chain passes --path to narrow it). Every test file is named: the bootstrap loads Patchwork, and an unnamed run scans tests/Unit and scores every mutant killed without running it. Add a new test file here.",
         "stan": "Run PHPStan at the level phpstan.neon.dist sets.",
         "refactor": "Apply Rector's gating profile.",
         "refactor:sweep": "Apply Rector's sweep profile (review the diff).",

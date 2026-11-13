@@ -176,8 +176,13 @@ function uamswp_t2p_get_taxonomy_map(): array
  * post, matching by term name and creating the destination term if it
  * doesn't already exist. Returns array of [term_name => created(bool)].
  */
-function uamswp_t2p_migrate_terms($old_post_id, $new_post_id, $dry_run = false): array
-{
+function uamswp_t2p_migrate_terms(
+    $old_post_id,
+    $new_post_id,
+    // The coverage driver does not report a signature line as executed, so this mutant is uncovered; a hand-applied mutation fails the suite.
+    // @pest-mutate-ignore:FalseToTrue
+    $dry_run = false
+): array {
     $tax_map = uamswp_t2p_get_taxonomy_map();
     $report = [];
 
@@ -231,8 +236,15 @@ function uamswp_t2p_migrate_terms($old_post_id, $new_post_id, $dry_run = false):
  * Core migration
  * --------------------------------------------------------------------- */
 
-function uamswp_t2p_get_pending_posts($limit = -1, $force = false)
-{
+function uamswp_t2p_get_pending_posts(
+    // The coverage driver does not report a signature line as executed, so this mutant is uncovered; a hand-applied mutation fails the suite.
+    // @pest-mutate-ignore:DecrementInteger
+    // @pest-mutate-ignore:IncrementInteger
+    $limit = -1,
+    // The coverage driver does not report a signature line as executed, so this mutant is uncovered; a hand-applied mutation fails the suite.
+    // @pest-mutate-ignore:FalseToTrue
+    $force = false
+) {
     $args = [
         'post_type' => UAMSWP_T2P_SRC_CPT,
         'post_status' => 'any',
@@ -276,8 +288,12 @@ function uamswp_t2p_guess_sorttext($title)
  * Builds a full preview/result record for one post without necessarily
  * writing anything (when $dry_run is true).
  */
-function uamswp_t2p_migrate_post($old_post_id, $dry_run = true): WP_Error|array
-{
+function uamswp_t2p_migrate_post(
+    $old_post_id,
+    // The coverage driver does not report a signature line as executed, so this mutant is uncovered; a hand-applied mutation fails the suite.
+    // @pest-mutate-ignore:TrueToFalse
+    $dry_run = true
+): WP_Error|array {
     $old_post = get_post($old_post_id);
     if (! $old_post || $old_post->post_type !== UAMSWP_T2P_SRC_CPT) {
         return new WP_Error('invalid_post', 'Not a tshowcase post.');
