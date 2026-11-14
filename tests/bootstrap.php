@@ -25,6 +25,12 @@ require_once __DIR__.'/../vendor/antecedent/patchwork/Patchwork.php';
 require_once __DIR__.'/Support/WP_Error.php';
 
 /*
+ * The same for wpdb: the plugin reads the global only when it is one, and the
+ * tests substitute subclasses that answer a query from a fixture.
+ */
+require_once __DIR__.'/Support/wpdb.php';
+
+/*
  * The plugin file opens with `if ( ! defined( 'ABSPATH' ) ) { exit; }`. Define
  * it so the file loads, pointing at a directory that is not a WordPress install.
  */

@@ -20,7 +20,7 @@ use function Brain\Monkey\Functions\when;
  */
 function t2p_wpdb(array $rows): object
 {
-    $wpdb = new class($rows)
+    $wpdb = new class($rows) extends wpdb
     {
         public string $posts = 'wp_posts';
 
@@ -34,17 +34,17 @@ function t2p_wpdb(array $rows): object
          */
         public function __construct(private readonly array $rows) {}
 
-        public function prepare(string $query, string $flag): string
+        public function prepare(string $query, mixed ...$args): string
         {
             return $query;
         }
 
         /** @return array<int, object> */
-        public function get_results(string $query): array
+        public function get_results(?string $query = null, string $output = 'OBJECT'): array
         {
-            $this->queries[] = $query;
+            $this->queries[] = (string) $query;
 
-            return str_contains($query, 'post_content') ? $this->rows : [];
+            return str_contains((string) $query, 'post_content') ? $this->rows : [];
         }
     };
     $GLOBALS['wpdb'] = $wpdb;
@@ -62,6 +62,32 @@ afterEach(function (): void {
 });
 
 describe('uamswp_t2p_scan_shortcode_locations', function (): void {
+    it('lists only widgets when WordPress has no database object', function (): void {
+        $GLOBALS['wpdb'] = new stdClass;
+        when('get_option')->alias(fn (string $name): mixed => $name === 'widget_text' ? [3 => ['text' => '[show-team]']] : false);
+        when('admin_url')->justReturn('widgets');
+
+        $found = uamswp_t2p_scan_shortcode_locations();
+
+        expect($found)->toHaveCount(1)
+            ->and($found[0]['type'])->toBe('widget');
+    });
+
+    it('reads a post row that lacks a column as zero or empty', function (): void {
+        t2p_wpdb([(object) ['post_content' => '[show-team]']]);
+        when('get_option')->justReturn(false);
+        when('get_edit_post_link')->justReturn('edit');
+
+        expect(uamswp_t2p_scan_shortcode_locations())->toBe([[
+            'type' => 'post',
+            'id' => 0,
+            'title' => '',
+            'post_type' => '',
+            'edit_link' => 'edit',
+            'matches' => ['[show-team]'],
+        ]]);
+    });
+
     it('lists posts that carry the shortcode and skips incidental mentions', function (): void {
         $wpdb = t2p_wpdb([
             t2p_row(13, 'we use the show-team plugin'),
@@ -141,21 +167,21 @@ describe('uamswp_t2p_scan_shortcode_locations', function (): void {
 
 describe('uamswp_t2p_update_shortcode_locations', function (): void {
     it('rewrites a post in place and reports ids that were not migrated', function (): void {
-        $GLOBALS['wpdb'] = new class
+        $GLOBALS['wpdb'] = new class extends wpdb
         {
             public string $posts = 'wp_posts';
 
             public string $postmeta = 'wp_postmeta';
 
-            public function prepare(string $query, string $flag): string
+            public function prepare(string $query, mixed ...$args): string
             {
                 return $query;
             }
 
             /** @return array<int, object> */
-            public function get_results(string $query): array
+            public function get_results(?string $query = null, string $output = 'OBJECT'): array
             {
-                return str_contains($query, 'post_content')
+                return str_contains((string) $query, 'post_content')
                     ? [(object) ['ID' => 12, 'post_title' => 'Team', 'post_type' => 'page', 'post_content' => '[show-team ids="5,9"]']]
                     : [(object) ['post_id' => 50, 'meta_value' => '5']];
             }
@@ -175,21 +201,21 @@ describe('uamswp_t2p_update_shortcode_locations', function (): void {
     });
 
     it('rewrites a widget in the field it is stored in', function (string $field, string $other): void {
-        $GLOBALS['wpdb'] = new class
+        $GLOBALS['wpdb'] = new class extends wpdb
         {
             public string $posts = 'wp_posts';
 
             public string $postmeta = 'wp_postmeta';
 
-            public function prepare(string $query, string $flag): string
+            public function prepare(string $query, mixed ...$args): string
             {
                 return $query;
             }
 
             /** @return array<int, object> */
-            public function get_results(string $query): array
+            public function get_results(?string $query = null, string $output = 'OBJECT'): array
             {
-                return str_contains($query, 'post_content') ? [] : [(object) ['post_id' => 50, 'meta_value' => '5']];
+                return str_contains((string) $query, 'post_content') ? [] : [(object) ['post_id' => 50, 'meta_value' => '5']];
             }
         };
         $stored = ['title' => 'T', $field => '[show-team ids="5"] and [/show-team]'];
@@ -208,19 +234,19 @@ describe('uamswp_t2p_update_shortcode_locations', function (): void {
     ]);
 
     it('splits the stored id on its first colon only', function (): void {
-        $GLOBALS['wpdb'] = new class
+        $GLOBALS['wpdb'] = new class extends wpdb
         {
             public string $posts = 'wp_posts';
 
             public string $postmeta = 'wp_postmeta';
 
-            public function prepare(string $query, string $flag): string
+            public function prepare(string $query, mixed ...$args): string
             {
                 return $query;
             }
 
             /** @return array<int, object> */
-            public function get_results(string $query): array
+            public function get_results(?string $query = null, string $output = 'OBJECT'): array
             {
                 return [];
             }
@@ -318,19 +344,19 @@ describe('uamswp_t2p_update_shortcode_locations', function (): void {
     });
 
     it('skips a widget that vanished between the scan and the rewrite', function (): void {
-        $GLOBALS['wpdb'] = new class
+        $GLOBALS['wpdb'] = new class extends wpdb
         {
             public string $posts = 'wp_posts';
 
             public string $postmeta = 'wp_postmeta';
 
-            public function prepare(string $query, string $flag): string
+            public function prepare(string $query, mixed ...$args): string
             {
                 return $query;
             }
 
             /** @return array<int, object> */
-            public function get_results(string $query): array
+            public function get_results(?string $query = null, string $output = 'OBJECT'): array
             {
                 return [];
             }

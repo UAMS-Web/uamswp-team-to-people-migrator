@@ -13,7 +13,7 @@ vendor/bin/pest
 
 ## Code quality
 
-Rector, PHPStan (level 9) and Pint run through `composer test:refactor`, `composer stan` and `composer test:pint`. To make `git blame` skip the Pint reformat commit, run once per clone:
+Rector, PHPStan (level 10) and Pint run through `composer test:refactor`, `composer stan` and `composer test:pint`. To make `git blame` skip the Pint reformat commit, run once per clone:
 
 ```bash
 git config blame.ignoreRevsFile .git-blame-ignore-revs
