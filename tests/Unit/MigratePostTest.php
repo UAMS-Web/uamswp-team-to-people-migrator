@@ -152,7 +152,7 @@ it('creates the People post and copies everything over', function (): void {
             'post_excerpt' => 'Short',
             'post_status' => 'publish',
             'menu_order' => 3,
-            'post_author' => '4',
+            'post_author' => 4,
             'post_date' => '2026-01-02 03:04:05',
             'post_date_gmt' => '2026-01-02 08:04:05',
         ], true]])
