@@ -71,10 +71,40 @@ function t2p_spy(string $function, array &$calls, mixed $answer = true): void
     });
 }
 
+/**
+ * The result of migrating one post, which must be a report rather than an error.
+ *
+ * @return array<string, mixed>
+ */
+function t2p_migrate(int $id, bool $dry_run = true): array
+{
+    $result = uamswp_t2p_migrate_post($id, $dry_run);
+
+    if ($result instanceof WP_Error) {
+        throw new RuntimeException('Expected a report, got '.$result->get_error_code().'.');
+    }
+
+    return $result;
+}
+
+/**
+ * The error that migrating a post of the wrong kind must produce.
+ */
+function t2p_migrate_error(int $id): WP_Error
+{
+    $result = uamswp_t2p_migrate_post($id);
+
+    if (! $result instanceof WP_Error) {
+        throw new RuntimeException('Expected an error, got a report.');
+    }
+
+    return $result;
+}
+
 it('rejects a post that does not exist', function (): void {
     when('get_post')->justReturn();
 
-    $result = uamswp_t2p_migrate_post(5);
+    $result = t2p_migrate_error(5);
 
     expect($result)->toBeInstanceOf(WP_Error::class)
         ->and($result->get_error_code())->toBe('invalid_post')
@@ -128,7 +158,7 @@ it('previews by default and when asked', function (): void {
 it('warns only about the sort text when there is no unmapped meta', function (): void {
     t2p_source();
 
-    expect(uamswp_t2p_migrate_post(5)['warnings'])->toHaveCount(1);
+    expect(t2p_migrate(5)['warnings'])->toHaveCount(1);
 });
 
 it('creates the People post and copies everything over', function (): void {
@@ -144,7 +174,7 @@ it('creates the People post and copies everything over', function (): void {
     t2p_spy('set_post_thumbnail', $thumbnails);
     t2p_spy('update_post_meta', $meta);
 
-    $result = uamswp_t2p_migrate_post(5, false);
+    $result = t2p_migrate(5, false);
 
     expect($result['new_id'])->toBe(99)
         ->and($inserted)->toBe([[[
@@ -176,7 +206,7 @@ it('sets no thumbnail when the source post has none', function (): void {
 
     Functions\expect('set_post_thumbnail')->never();
 
-    expect(uamswp_t2p_migrate_post(5, false)['thumbnail'])->toBe(0);
+    expect(t2p_migrate(5, false)['thumbnail'])->toBe(0);
 });
 
 it('reports a failed insert and writes nothing else', function (): void {
@@ -185,7 +215,7 @@ it('reports a failed insert and writes nothing else', function (): void {
     Functions\expect('set_post_thumbnail')->never();
     Functions\expect('update_post_meta')->never();
 
-    $result = uamswp_t2p_migrate_post(5, false);
+    $result = t2p_migrate(5, false);
 
     expect($result['new_id'])->toBeNull()
         ->and($result['meta_mapped'])->toBe([])
@@ -201,7 +231,7 @@ it('passes the destination post through the term migration', function (): void {
     when('get_term_by')->justReturn((object) ['term_id' => 3]);
     Functions\expect('wp_set_post_terms')->once()->with(99, [3], 'uamspeople-categories', false);
 
-    expect(uamswp_t2p_migrate_post(5, false)['terms'])->toBe([
+    expect(t2p_migrate(5, false)['terms'])->toBe([
         ['taxonomy' => 'uamspeople-categories', 'name' => 'Old', 'created' => false],
     ]);
 });
@@ -214,7 +244,7 @@ it('previews the terms without setting them', function (): void {
 
     Functions\expect('wp_insert_term')->never();
 
-    expect(uamswp_t2p_migrate_post(5)['terms'])->toBe([
+    expect(t2p_migrate(5)['terms'])->toBe([
         ['taxonomy' => 'uamspeople-categories', 'name' => 'New', 'created' => true],
     ]);
 });

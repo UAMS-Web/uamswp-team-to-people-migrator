@@ -266,7 +266,7 @@ function uamswp_t2p_migrate_terms(
  *
  * @param  int  $limit  how many to fetch, -1 for all
  * @param  bool  $force  include posts already migrated
- * @return array<int, WP_Post|int>
+ * @return array<int, WP_Post>
  */
 function uamswp_t2p_get_pending_posts(
     // The coverage driver does not report a signature line as executed, so this mutant is uncovered; a hand-applied mutation fails the suite.
@@ -563,7 +563,7 @@ function uamswp_t2p_content_has_shortcode($content): bool
  * Locations to check: post_content on any non-trashed post, plus the
  * classic Text and Custom HTML widgets.
  *
- * @return list<array{type: string, id: int|string, title: string, post_type: string, edit_link: string|null, matches: array<int, string>}>
+ * @return list<array{type: 'post', id: int, title: string, post_type: string, edit_link: string|null, matches: array<int, string>}|array{type: 'widget', id: string, title: string, post_type: string, edit_link: string, matches: array<int, string>}>
  */
 function uamswp_t2p_scan_shortcode_locations(): array
 {
