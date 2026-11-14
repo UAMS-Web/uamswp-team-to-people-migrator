@@ -197,7 +197,7 @@ function uamswp_t2p_get_taxonomy_map(): array
  * destination term had to be created.
  *
  * @param  int  $old_post_id  the source post
- * @param  int  $new_post_id  the destination post
+ * @param  int|null  $new_post_id  the destination post, null on a dry run
  * @param  bool  $dry_run  when true, nothing is written
  * @return list<array{taxonomy: string, name: string, created: bool}>
  */
@@ -249,7 +249,7 @@ function uamswp_t2p_migrate_terms(
             }
         }
 
-        if (! $dry_run && $dest_term_ids !== []) {
+        if (! $dry_run && $new_post_id !== null && $dest_term_ids !== []) {
             wp_set_post_terms($new_post_id, $dest_term_ids, $dest_tax, false);
         }
     }
@@ -638,32 +638,43 @@ function uamswp_t2p_update_shortcode_locations(): array
     foreach ($locations as &$loc) {
         $untranslated = [];
 
+        $updated = true;
+
         if ($loc['type'] === 'post') {
             $post = get_post($loc['id']);
-            $content = $post->post_content;
-            $content = uamswp_t2p_translate_id_attributes($content, $id_map, $untranslated);
-            $content = uamswp_t2p_rename_shortcode_tags($content);
+            $content = $post === null ? null : uamswp_t2p_translate_id_attributes($post->post_content, $id_map, $untranslated);
+            $content = $content === null ? null : uamswp_t2p_rename_shortcode_tags($content);
 
-            wp_update_post(
-                [
-                    'ID' => $loc['id'],
-                    'post_content' => $content,
-                ]
-            );
+            // A post deleted since the scan, or content the regex engine could not process, is left as it is.
+            if ($content === null) {
+                $updated = false;
+            } else {
+                wp_update_post(
+                    [
+                        'ID' => $loc['id'],
+                        'post_content' => $content,
+                    ]
+                );
+            }
         } else {
             [$option_name, $key] = explode(':', $loc['id'], 2);
             $widgets = get_option($option_name);
             if (isset($widgets[$key])) {
                 $field = isset($widgets[$key]['content']) ? 'content' : 'text';
-                $text = $widgets[$key][$field];
-                $text = uamswp_t2p_translate_id_attributes($text, $id_map, $untranslated);
-                $text = uamswp_t2p_rename_shortcode_tags($text);
-                $widgets[$key][$field] = $text;
-                update_option($option_name, $widgets);
+                $text = uamswp_t2p_translate_id_attributes($widgets[$key][$field], $id_map, $untranslated);
+                $text = $text === null ? null : uamswp_t2p_rename_shortcode_tags($text);
+
+                // Content the regex engine could not process is left as it is.
+                if ($text === null) {
+                    $updated = false;
+                } else {
+                    $widgets[$key][$field] = $text;
+                    update_option($option_name, $widgets);
+                }
             }
         }
 
-        $loc['updated'] = true;
+        $loc['updated'] = $updated;
         $loc['untranslated_ids'] = $untranslated;
     }
 
@@ -776,13 +787,13 @@ function uamswp_t2p_render_admin_page(): void
 						<?php } ?>
 						<tr>
 							<td>
-								<a href="<?php echo esc_url(get_edit_post_link($r['old_id'])); ?>">
+								<a href="<?php echo esc_url(get_edit_post_link($r['old_id']) ?? ''); ?>">
 									#<?php echo esc_html($r['old_id']); ?> - <?php echo esc_html($r['title']); ?>
 								</a>
 							</td>
 							<td>
 								<?php if ($r['new_id']) { ?>
-									<a href="<?php echo esc_url(get_edit_post_link($r['new_id'])); ?>">#<?php echo esc_html($r['new_id']); ?></a>
+									<a href="<?php echo esc_url(get_edit_post_link($r['new_id']) ?? ''); ?>">#<?php echo esc_html($r['new_id']); ?></a>
 								<?php } else { ?>
 									<em><?php esc_html_e('(preview only - not created)', 'uamswp-t2p'); ?></em>
 								<?php } ?>

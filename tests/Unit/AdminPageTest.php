@@ -44,7 +44,7 @@ function t2p_render_page(array $post = [], array $env = [], array &$log = []): s
     when('checked')->alias(static function (mixed $checked): void {
         echo $checked ? 'CHECKED' : 'UNCHECKED';
     });
-    when('get_edit_post_link')->alias(static fn (int|string $id): string => "edit/{$id}");
+    when('get_edit_post_link')->alias(static fn (int|string $id): ?string => array_key_exists('edit_link', $env) ? $env['edit_link'] : "edit/{$id}");
     when('get_posts')->alias(static function (array $args) use ($env, &$log): array {
         $log['get_posts'][] = $args;
 
@@ -227,6 +227,16 @@ describe('the migration results table', function (): void {
     it('shows an error as a single full-width row', function (): void {
         expect(t2p_results_row(new WP_Error('invalid_post', 'Not a tshowcase post.')))
             ->toBe('<tr><td colspan="5">h(Not a tshowcase post.)</td></tr>');
+    });
+
+    it('renders an empty link for a post the user cannot edit', function (): void {
+        $out = t2p_render_page(
+            ['uamswp_t2p_action' => 'migrate'],
+            ['posts' => t2p_posts(5), 'results' => [5 => t2p_report(['new_id' => 9])], 'edit_link' => null],
+        );
+
+        expect($out)->toContain('<a href="u()"> #h(5) - h(Jane) </a>')
+            ->and($out)->toContain('<a href="u()">#h(9)</a>');
     });
 
     it('carries on to the next post after an error row', function (): void {
