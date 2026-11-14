@@ -181,6 +181,64 @@ it('reads a meta value that is not a list, or whose first entry is not a scalar,
     expect(uamswp_t2p_get_unmapped_meta(7))->toBe(['_tsbare' => '', '_tsnested' => '', '_tsnumber' => '5']);
 });
 
+it('reads a database value as an integer, and anything non-numeric as zero', function (mixed $value, int $expected): void {
+    expect(uamswp_t2p_int($value))->toBe($expected);
+})->with([
+    'numeric string' => ['12', 12],
+    'integer' => [7, 7],
+    'decimal string' => ['3', 3],
+    'word' => ['abc', 0],
+    'null' => [null, 0],
+    'array' => [['1'], 0],
+]);
+
+it('reads a database value as a string, and anything that is not a scalar as empty', function (mixed $value, string $expected): void {
+    expect(uamswp_t2p_string($value))->toBe($expected);
+})->with([
+    'string' => ['Team page', 'Team page'],
+    'integer' => [12, '12'],
+    'null' => [null, ''],
+    'array' => [['x'], ''],
+    'object' => [new stdClass, ''],
+]);
+
+it('keeps the rows of a query that are objects, in order, without their keys', function (): void {
+    $database = new class extends wpdb
+    {
+        /** @return array<int, mixed> */
+        public function get_results(?string $query = null, string $output = 'OBJECT'): array
+        {
+            return [4 => (object) ['n' => 1], 6 => 'junk', 9 => (object) ['n' => 2]];
+        }
+    };
+
+    expect(uamswp_t2p_query_rows($database, 'SELECT 1'))->toEqual([(object) ['n' => 1], (object) ['n' => 2]]);
+});
+
+it('treats a query that returns no list as having no rows', function (): void {
+    $database = new class extends wpdb
+    {
+        public function get_results(?string $query = null, string $output = 'OBJECT'): array|object|null
+        {
+            return null;
+        }
+    };
+
+    expect(uamswp_t2p_query_rows($database, 'SELECT 1'))->toBe([]);
+});
+
+it('uses the global database only when it is a wpdb', function (): void {
+    $GLOBALS['wpdb'] = new wpdb;
+    $found = uamswp_t2p_database();
+    $GLOBALS['wpdb'] = new stdClass;
+    $other = uamswp_t2p_database();
+    unset($GLOBALS['wpdb']);
+
+    expect($found)->toBeInstanceOf(wpdb::class)
+        ->and($other)->toBeNull()
+        ->and(uamswp_t2p_database())->toBeNull();
+});
+
 it('queries the posts not yet migrated, oldest first', function (): void {
     Functions\expect('get_posts')
         ->once()

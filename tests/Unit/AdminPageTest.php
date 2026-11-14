@@ -342,8 +342,8 @@ describe('the shortcode finder', function (): void {
         expect(t2p_render_page())->not->toContain('No show-team shortcodes found.');
     });
 
-    it('does nothing for an unknown finder action or a failed nonce', function (array $post, ?string $failed_nonce): void {
-        $out = t2p_render_page($post, [
+    it('does nothing for an unknown finder action or a failed nonce', function (string $action, ?string $failed_nonce): void {
+        $out = t2p_render_page(['uamswp_t2p_sc_action' => $action], [
             'nonce' => $failed_nonce === null ? [] : [$failed_nonce => false],
             'scan' => [t2p_location()],
             'update' => [t2p_location()],
@@ -352,8 +352,8 @@ describe('the shortcode finder', function (): void {
         expect($out)->toContain('H(No show-team shortcodes found.)')
             ->and($out)->not->toContain('results');
     })->with([
-        'unknown action' => [['uamswp_t2p_sc_action' => 'other'], null],
-        'failed nonce' => [['uamswp_t2p_sc_action' => 'scan'], 'uamswp_t2p_sc_run'],
+        'unknown action' => ['other', null],
+        'failed nonce' => ['scan', 'uamswp_t2p_sc_run'],
     ]);
 });
 

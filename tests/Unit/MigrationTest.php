@@ -131,22 +131,22 @@ describe('uamswp_t2p_build_id_map', function (): void {
     });
 
     it('maps each old post ID to the People post that records it', function (): void {
-        $wpdb = new class
+        $wpdb = new class extends wpdb
         {
             public string $postmeta = 'wp_postmeta';
 
             /** @var array<int, mixed> */
             public array $prepared = [];
 
-            public function prepare(string $query, string $flag): string
+            public function prepare(string $query, mixed ...$args): string
             {
-                $this->prepared = [$query, $flag];
+                $this->prepared = [$query, $args[0] ?? null];
 
                 return 'PREPARED';
             }
 
             /** @return array<int, object> */
-            public function get_results(string $query): array
+            public function get_results(?string $query = null, string $output = 'OBJECT'): array
             {
                 return $query === 'PREPARED'
                     ? [(object) ['post_id' => '10', 'meta_value' => '5'], (object) ['post_id' => '11', 'meta_value' => '6']]
@@ -159,18 +159,37 @@ describe('uamswp_t2p_build_id_map', function (): void {
             ->and($wpdb->prepared)->toBe(['SELECT post_id, meta_value FROM wp_postmeta WHERE meta_key = %s', '_migrated_from_tshowcase_id']);
     });
 
+    it('reads a row that lacks a column as zero', function (): void {
+        $GLOBALS['wpdb'] = new class extends wpdb
+        {
+            /** @return array<int, object> */
+            public function get_results(?string $query = null, string $output = 'OBJECT'): array
+            {
+                return [(object) ['post_id' => '10'], (object) ['meta_value' => '7']];
+            }
+        };
+
+        expect(uamswp_t2p_build_id_map())->toBe([0 => 10, 7 => 0]);
+    });
+
+    it('is empty when WordPress has no database object', function (): void {
+        $GLOBALS['wpdb'] = new stdClass;
+
+        expect(uamswp_t2p_build_id_map())->toBe([]);
+    });
+
     it('is empty when nothing has been migrated', function (): void {
-        $GLOBALS['wpdb'] = new class
+        $GLOBALS['wpdb'] = new class extends wpdb
         {
             public string $postmeta = 'wp_postmeta';
 
-            public function prepare(string $query, string $flag): string
+            public function prepare(string $query, mixed ...$args): string
             {
                 return $query;
             }
 
             /** @return array<int, object> */
-            public function get_results(string $query): array
+            public function get_results(?string $query = null, string $output = 'OBJECT'): array
             {
                 return [];
             }

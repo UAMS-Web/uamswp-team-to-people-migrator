@@ -333,7 +333,7 @@ function uamswp_t2p_guess_sorttext($title)
  *
  * @param  int  $old_post_id  the source post
  * @param  bool  $dry_run  when true, nothing is written
- * @return WP_Error|array{old_id: int, title: string, new_id: int|null, meta_mapped: array<string, string>, meta_unmapped: array<string, string>, terms: list<array{taxonomy: string, name: string, created: bool}>, thumbnail: int, warnings?: list<string>}
+ * @return WP_Error|array{old_id: int, title: string, new_id: int|null, meta_mapped: array<string, mixed>, meta_unmapped: array<string, string>, terms: list<array{taxonomy: string, name: string, created: bool}>, thumbnail: int, warnings: list<string>}
  */
 function uamswp_t2p_migrate_post(
     $old_post_id,
@@ -356,8 +356,10 @@ function uamswp_t2p_migrate_post(
         'thumbnail' => (int) get_post_thumbnail_id($old_post_id),
     ];
 
+    $warnings = [];
+
     if (! empty($result['meta_unmapped'])) {
-        $result['warnings'][] = sprintf(
+        $warnings[] = sprintf(
             '%d field(s) have no default equivalent in People Showcase and were copied as raw postmeta - review whether they need a matching entry in the People Showcase "Custom Fields" setting: %s',
             count($result['meta_unmapped']),
             implode(', ', array_keys($result['meta_unmapped']))
@@ -382,7 +384,8 @@ function uamswp_t2p_migrate_post(
         $new_post_id = wp_insert_post($postarr, true);
 
         if (is_wp_error($new_post_id)) {
-            $result['warnings'][] = 'Failed to create new post: '.$new_post_id->get_error_message();
+            $warnings[] = 'Failed to create new post: '.$new_post_id->get_error_message();
+            $result['warnings'] = $warnings;
 
             return $result;
         }
@@ -424,7 +427,8 @@ function uamswp_t2p_migrate_post(
     if (! $dry_run) {
         update_post_meta($new_post_id, '_pssorttext', $sorttext);
     }
-    $result['warnings'][] = 'Sort Text ("'.$sorttext.'") was auto-generated from the title - worth a quick check for names with suffixes or credentials.';
+    $warnings[] = 'Sort Text ("'.$sorttext.'") was auto-generated from the title - worth a quick check for names with suffixes or credentials.';
+    $result['warnings'] = $warnings;
 
     // Raw unmapped meta, copied with _ps prefix so nothing is lost
     foreach ($result['meta_unmapped'] as $src_key => $value) {
@@ -466,28 +470,74 @@ function uamswp_t2p_migrate_post(
  * If the site builds pages with a page builder that stores shortcodes
  * somewhere other than post_content, those won't be caught here.
  * --------------------------------------------------------------------- */
+
 /**
- * Old tshowcase ID => new uamspeople ID, for every post migrated so far.
- *
- * @return int[]
+ * The WordPress database object, or null when the global is not one.
  */
-function uamswp_t2p_build_id_map(): array
+function uamswp_t2p_database(): ?wpdb
 {
     global $wpdb;
 
-    $rows = $wpdb->get_results(
-        $wpdb->prepare(
-            "SELECT post_id, meta_value FROM {$wpdb->postmeta} WHERE meta_key = %s",
+    return $wpdb instanceof wpdb ? $wpdb : null;
+}
+
+/**
+ * The rows of a query as objects. Anything else a query returns is dropped.
+ *
+ * @return list<object>
+ */
+function uamswp_t2p_query_rows(wpdb $database, string $query): array
+{
+    $rows = $database->get_results($query);
+
+    return is_array($rows) ? array_values(array_filter($rows, is_object(...))) : [];
+}
+
+/**
+ * A database value as an integer, 0 when it is not numeric.
+ */
+function uamswp_t2p_int(mixed $value): int
+{
+    // The file is not strict_types, so the int return type coerces a numeric string itself and the cast changes nothing.
+    // @pest-mutate-ignore:RemoveIntegerCast
+    return is_numeric($value) ? (int) $value : 0;
+}
+
+/**
+ * A database value as a string, empty when it is not a scalar.
+ */
+function uamswp_t2p_string(mixed $value): string
+{
+    // The file is not strict_types, so the string return type coerces a scalar itself and the cast changes nothing.
+    // @pest-mutate-ignore:RemoveStringCast
+    return is_scalar($value) ? (string) $value : '';
+}
+
+/**
+ * Old tshowcase ID => new uamspeople ID, for every post migrated so far.
+ *
+ * @return array<int, int>
+ */
+function uamswp_t2p_build_id_map(): array
+{
+    $database = uamswp_t2p_database();
+    if (! $database instanceof wpdb) {
+        return [];
+    }
+
+    $rows = uamswp_t2p_query_rows(
+        $database,
+        $database->prepare(
+            // $wpdb->postmeta is core's own table name, never input, and the stubs ask for a literal string that an interpolated property cannot be.
+            // @phpstan-ignore argument.type
+            "SELECT post_id, meta_value FROM {$database->postmeta} WHERE meta_key = %s",
             UAMSWP_T2P_MIGRATED_FLAG_NEW
         )
     );
 
     $map = [];
     foreach ($rows as $row) {
-        // The meta value was written from an integer post ID, so it is already a canonical decimal string and PHP casts the key itself.
-        // @pest-mutate-ignore:RemoveIntegerCast
-        $old_id = (int) $row->meta_value;
-        $map[$old_id] = (int) $row->post_id; // old_id => new_id
+        $map[uamswp_t2p_int($row->meta_value ?? 0)] = uamswp_t2p_int($row->post_id ?? 0); // old_id => new_id
     }
 
     return $map;
@@ -512,40 +562,57 @@ function uamswp_t2p_rename_shortcode_tags($content): ?string
 }
 
 /**
+ * Rewrites one ids="" or exclude="" attribute found by the pattern in
+ * uamswp_t2p_translate_id_attributes().
+ *
+ * @param  array<int|string, string>  $matches  the whole match, the attribute name, the quote and the value
+ * @param  array<int, int>  $id_map  old post ID => new post ID
+ * @param  list<string>  $untranslated  receives the IDs that had no mapping
+ */
+function uamswp_t2p_translate_id_match(array $matches, array $id_map, array &$untranslated): string
+{
+    $attr = $matches[1];
+    $quote = $matches[2];
+    $ids = array_map(trim(...), explode(',', $matches[3]));
+    $new = [];
+
+    foreach ($ids as $id) {
+        if (! ctype_digit($id)) {
+            $new[] = $id; // not a plain numeric ID, leave untouched
+
+            continue;
+        }
+        if (isset($id_map[(int) $id])) {
+            $new[] = $id_map[(int) $id];
+        } else {
+            $new[] = $id; // no migration record yet - leave as-is
+            $untranslated[] = $id;
+        }
+    }
+
+    return $attr.'='.$quote.implode(',', $new).$quote;
+}
+
+/**
  * Within ids="" / exclude="" attribute values on the main shortcode,
  * translates comma-separated Team post IDs to their new People post IDs.
  * IDs with no migration record yet are left as-is and reported back so
  * they can be reviewed by hand.
  *
  * @param  string  $content  the content to rewrite
- * @param  array<int, int|string>  $id_map  old post ID => new post ID
+ * @param  array<int, int>  $id_map  old post ID => new post ID
  * @param  list<string>  $untranslated  filled with the IDs that had no mapping
  */
 function uamswp_t2p_translate_id_attributes($content, $id_map, &$untranslated): ?string
 {
     $untranslated = [];
 
-    $callback = function ($matches) use ($id_map, &$untranslated): string {
-        $attr = $matches[1];
-        $quote = $matches[2];
-        $ids = array_map(trim(...), explode(',', $matches[3]));
-        $new = [];
+    $callback = function (array $matches) use ($id_map, &$untranslated): string {
+        // preg_replace_callback() passes strings only, so mapping them through the string reader changes nothing and only gives the array its type.
+        // @pest-mutate-ignore:UnwrapArrayMap
+        $parts = array_map(uamswp_t2p_string(...), $matches);
 
-        foreach ($ids as $id) {
-            if (! ctype_digit($id)) {
-                $new[] = $id; // not a plain numeric ID, leave untouched
-
-                continue;
-            }
-            if (isset($id_map[(int) $id])) {
-                $new[] = $id_map[(int) $id];
-            } else {
-                $new[] = $id; // no migration record yet - leave as-is
-                $untranslated[] = $id;
-            }
-        }
-
-        return $attr.'='.$quote.implode(',', $new).$quote;
+        return uamswp_t2p_translate_id_match($parts, $id_map, $untranslated);
     };
 
     return preg_replace_callback(
@@ -575,26 +642,30 @@ function uamswp_t2p_content_has_shortcode($content): bool
  */
 function uamswp_t2p_scan_shortcode_locations(): array
 {
-    global $wpdb;
-
+    $database = uamswp_t2p_database();
     $locations = [];
 
-    $posts = $wpdb->get_results(
-        "SELECT ID, post_title, post_type, post_content FROM {$wpdb->posts}
+    $posts = $database instanceof wpdb ? uamswp_t2p_query_rows(
+        $database,
+        "SELECT ID, post_title, post_type, post_content FROM {$database->posts}
 		 WHERE post_status != 'trash' AND post_content LIKE '%show-team%'"
-    );
+    ) : [];
 
     foreach ($posts as $p) {
-        if (! uamswp_t2p_content_has_shortcode($p->post_content)) {
+        // A row without content gets the placeholder, and no placeholder contains a show-team tag, so the next check skips it all the same.
+        // @pest-mutate-ignore:EmptyStringToNotEmpty
+        $content = uamswp_t2p_string($p->post_content ?? '');
+        if (! uamswp_t2p_content_has_shortcode($content)) {
             continue; // LIKE match was incidental (e.g. text mentioning "show-team" without brackets)
         }
-        preg_match_all('/\[show-team[^\]]*\]/', $p->post_content, $found);
+        preg_match_all('/\[show-team[^\]]*\]/', $content, $found);
+        $id = uamswp_t2p_int($p->ID ?? 0);
         $locations[] = [
             'type' => 'post',
-            'id' => (int) $p->ID,
-            'title' => $p->post_title,
-            'post_type' => $p->post_type,
-            'edit_link' => get_edit_post_link($p->ID),
+            'id' => $id,
+            'title' => uamswp_t2p_string($p->post_title ?? ''),
+            'post_type' => uamswp_t2p_string($p->post_type ?? ''),
+            'edit_link' => get_edit_post_link($id),
             'matches' => $found[0],
         ];
     }
@@ -638,8 +709,6 @@ function uamswp_t2p_scan_shortcode_locations(): array
  */
 function uamswp_t2p_update_shortcode_locations(): array
 {
-    global $wpdb;
-
     $id_map = uamswp_t2p_build_id_map();
     $locations = uamswp_t2p_scan_shortcode_locations();
 
