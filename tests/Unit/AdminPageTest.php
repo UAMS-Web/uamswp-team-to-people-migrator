@@ -86,11 +86,11 @@ function t2p_tidy(string $html): string
 }
 
 /**
- * @return array<int, object>
+ * @return list<object>
  */
 function t2p_posts(int ...$ids): array
 {
-    return array_map(static fn (int $id): object => (object) ['ID' => $id], $ids);
+    return array_values(array_map(static fn (int $id): object => (object) ['ID' => $id], $ids));
 }
 
 /**
@@ -211,7 +211,9 @@ describe('the migration results table', function (): void {
     function t2p_results_row(array|WP_Error $report): string
     {
         $out = t2p_render_page(['uamswp_t2p_action' => 'preview'], ['posts' => t2p_posts(5), 'results' => [5 => $report]]);
-        preg_match('#<tbody>(.*?)</tbody>#', $out, $m);
+        if (preg_match('#<tbody>(.*?)</tbody>#', $out, $m) !== 1) {
+            throw new RuntimeException('The page has no table body.');
+        }
 
         return trim($m[1]);
     }
