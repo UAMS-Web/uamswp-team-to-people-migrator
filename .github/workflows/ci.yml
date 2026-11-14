@@ -6,7 +6,7 @@ name: CI
 # `checks` job. One definition serves every UAMS-Web repository, so this plugin does not
 # carry a copy that drifts. The call switches on the two jobs only a plugin runs
 # (`floor-lint`, `download-archive`), runs on Linux only, runs mutation testing (the plugin file
-# when a pull request changes it, everything on `workflow_dispatch`), and runs the plugin's unit suite as `composer test:unit`. `phpcs` stays off: this plugin has
+# when a pull request changes it, everything on `schedule` and `workflow_dispatch`), and runs the plugin's unit suite as `composer test:unit`. `phpcs` stays off: this plugin has
 # no PHPCS configuration. The chain's own header lists every input and its default.
 #
 # The last job, `CI`, is the one check a ruleset requires from this workflow (with the two
@@ -25,6 +25,10 @@ on:
   pull_request:
   push:
     branches: [main]
+  # The weekly full mutation pass: Monday 07:00 UTC, on the default branch. A pull request mutates only
+  # the files it changes, so this is what notices decay that no pull request touches.
+  schedule:
+    - cron: '0 7 * * 1'
   workflow_dispatch:
 
 # A new push to a pull request cancels that pull request's stale run. Every other run gets a
