@@ -327,7 +327,7 @@ function uamswp_t2p_migrate_post(
             'post_excerpt' => $old_post->post_excerpt,
             'post_status' => $old_post->post_status,
             'menu_order' => $old_post->menu_order,
-            'post_author' => $old_post->post_author,
+            'post_author' => (int) $old_post->post_author,
             'post_date' => $old_post->post_date,
             'post_date_gmt' => $old_post->post_date_gmt,
         ];
@@ -674,7 +674,7 @@ function uamswp_t2p_render_admin_page(): void
 
 		<p>
 			<strong><?php esc_html_e('Posts still pending migration:', 'uamswp-t2p'); ?></strong>
-			<?php echo esc_html($pending_count); ?>
+			<?php echo esc_html(sprintf('%d', $pending_count)); ?>
 			<?php if ($pending_count > UAMSWP_T2P_BATCH_SIZE) { ?>
 				<?php
                 printf(
@@ -736,9 +736,9 @@ function uamswp_t2p_render_admin_page(): void
 								<?php } ?>
 							</td>
 							<td>
-								<?php echo esc_html(count($r['meta_mapped'])); ?> <?php esc_html_e('mapped', 'uamswp-t2p'); ?>
+								<?php echo esc_html(sprintf('%d', count($r['meta_mapped']))); ?> <?php esc_html_e('mapped', 'uamswp-t2p'); ?>
 								<?php if (! empty($r['meta_unmapped'])) { ?>
-									, <?php echo esc_html(count($r['meta_unmapped'])); ?> <?php esc_html_e('raw-copied', 'uamswp-t2p'); ?>
+									, <?php echo esc_html(sprintf('%d', count($r['meta_unmapped']))); ?> <?php esc_html_e('raw-copied', 'uamswp-t2p'); ?>
 								<?php } ?>
 							</td>
 							<td>
