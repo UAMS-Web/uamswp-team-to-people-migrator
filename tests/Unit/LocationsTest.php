@@ -16,10 +16,11 @@ use function Brain\Monkey\Functions\when;
  * Installs a $wpdb stand-in whose posts query returns the given rows.
  *
  * @param  array<int, object>  $rows
+ * @return object{queries: array<int, string>}
  */
-function t2p_wpdb(array $rows): void
+function t2p_wpdb(array $rows): object
 {
-    $GLOBALS['wpdb'] = new class($rows)
+    $wpdb = new class($rows)
     {
         public string $posts = 'wp_posts';
 
@@ -46,6 +47,9 @@ function t2p_wpdb(array $rows): void
             return str_contains($query, 'post_content') ? $this->rows : [];
         }
     };
+    $GLOBALS['wpdb'] = $wpdb;
+
+    return $wpdb;
 }
 
 function t2p_row(int|string $id, string $content, string $title = 'A page', string $type = 'page'): object
@@ -59,7 +63,7 @@ afterEach(function (): void {
 
 describe('uamswp_t2p_scan_shortcode_locations', function (): void {
     it('lists posts that carry the shortcode and skips incidental mentions', function (): void {
-        t2p_wpdb([
+        $wpdb = t2p_wpdb([
             t2p_row(13, 'we use the show-team plugin'),
             t2p_row('12', 'a [show-team] b [show-team-search placeholder="x"] c', 'Team page', 'page'),
         ]);
@@ -76,9 +80,9 @@ describe('uamswp_t2p_scan_shortcode_locations', function (): void {
             'edit_link' => 'edit/12',
             'matches' => ['[show-team]', '[show-team-search placeholder="x"]'],
         ]])
-            ->and($GLOBALS['wpdb']->queries)->toHaveCount(1)
-            ->and($GLOBALS['wpdb']->queries[0])->toContain("post_status != 'trash'")
-            ->and($GLOBALS['wpdb']->queries[0])->toContain('wp_posts');
+            ->and($wpdb->queries)->toHaveCount(1)
+            ->and($wpdb->queries[0])->toContain("post_status != 'trash'")
+            ->and($wpdb->queries[0])->toContain('wp_posts');
     });
 
     it('lists widgets from both widget options with their edit link', function (): void {
@@ -289,6 +293,26 @@ describe('uamswp_t2p_update_shortcode_locations', function (): void {
         } finally {
             ini_set('pcre.backtrack_limit', (string) $limit);
         }
+
+        expect($result[0]['updated'])->toBeFalse();
+    });
+
+    it('leaves a widget alone whose stored text is not a string', function (): void {
+        t2p_wpdb([]);
+        $reads = 0;
+        when('get_option')->alias(function (string $name) use (&$reads): mixed {
+            if ($name !== 'widget_text') {
+                return false;
+            }
+
+            // The scan sees a string; the rewrite finds something else stored.
+            return ++$reads === 1 ? [3 => ['text' => '[show-team]']] : [3 => ['text' => ['not', 'a', 'string']]];
+        });
+        when('admin_url')->justReturn('widgets');
+
+        Functions\expect('update_option')->never();
+
+        $result = uamswp_t2p_update_shortcode_locations();
 
         expect($result[0]['updated'])->toBeFalse();
     });

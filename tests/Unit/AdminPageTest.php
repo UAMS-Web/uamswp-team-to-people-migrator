@@ -17,8 +17,10 @@ use function Brain\Monkey\Functions\when;
  * wrapped, so a wrong domain or a missing escape shows in the output.
  *
  * @param  array<string, mixed>  $post  the $_POST the request carries
- * @param  array<string, mixed>  $env  what the site answers
- * @param  array<string, array<int, mixed>>  $log  every call made to the stubs that matter, by name
+ * @param  array{can?: bool, types?: array<string, bool>, posts?: list<object>, all?: list<object>, results?: array<int, array<string, mixed>|WP_Error>, nonce?: array<string, bool>, scan?: list<array<string, mixed>>, update?: list<array<string, mixed>>, edit_link?: string|null}  $env  what the site answers
+ * @param  array<string, mixed>  $log  every call made to the stubs that matter, by name
+ *
+ * @param-out array{get_posts: list<array<string, mixed>>, nonce: list<array{string, string}>, migrate: list<array{int, bool}>}  $log
  */
 function t2p_render_page(array $post = [], array $env = [], array &$log = []): string
 {
@@ -33,7 +35,7 @@ function t2p_render_page(array $post = [], array $env = [], array &$log = []): s
     when('esc_html_e')->alias(static function (string $text, string $domain) use ($tr): void {
         echo 'H('.$tr($text, $domain).')';
     });
-    when('esc_html')->alias(static fn (mixed $text): string => 'h('.$text.')');
+    when('esc_html')->alias(static fn (int|string $text): string => 'h('.$text.')');
     when('esc_js')->alias(static fn (string $text): string => 'j('.$text.')');
     when('esc_url')->alias(static fn (string $url): string => 'u('.$url.')');
     when('wp_unslash')->alias(static fn (mixed $value): mixed => $value);
@@ -185,6 +187,16 @@ describe('the migration form', function (): void {
             ->and($out)->not->toContain('results');
     });
 
+    it('reads a posted action that is not a string as no action', function (): void {
+        $log = [];
+
+        $out = t2p_render_page(['uamswp_t2p_action' => ['preview']], ['posts' => t2p_posts(5)], $log);
+
+        expect($log['migrate'])->toBe([])
+            ->and($log['nonce'])->toBe([])
+            ->and($out)->not->toContain('results');
+    });
+
     it('only a preview is a dry run, whatever else the action says', function (): void {
         $log = [];
 
@@ -330,14 +342,18 @@ describe('the shortcode finder', function (): void {
         expect(t2p_render_page())->not->toContain('No show-team shortcodes found.');
     });
 
-    it('does nothing for an unknown finder action or a failed nonce', function (array $post, array $env): void {
-        $out = t2p_render_page($post, $env + ['scan' => [t2p_location()], 'update' => [t2p_location()]]);
+    it('does nothing for an unknown finder action or a failed nonce', function (array $post, ?string $failed_nonce): void {
+        $out = t2p_render_page($post, [
+            'nonce' => $failed_nonce === null ? [] : [$failed_nonce => false],
+            'scan' => [t2p_location()],
+            'update' => [t2p_location()],
+        ]);
 
         expect($out)->toContain('H(No show-team shortcodes found.)')
             ->and($out)->not->toContain('results');
     })->with([
-        'unknown action' => [['uamswp_t2p_sc_action' => 'other'], []],
-        'failed nonce' => [['uamswp_t2p_sc_action' => 'scan'], ['nonce' => ['uamswp_t2p_sc_run' => false]]],
+        'unknown action' => [['uamswp_t2p_sc_action' => 'other'], null],
+        'failed nonce' => [['uamswp_t2p_sc_action' => 'scan'], 'uamswp_t2p_sc_run'],
     ]);
 });
 

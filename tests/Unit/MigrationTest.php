@@ -131,7 +131,7 @@ describe('uamswp_t2p_build_id_map', function (): void {
     });
 
     it('maps each old post ID to the People post that records it', function (): void {
-        $GLOBALS['wpdb'] = new class
+        $wpdb = new class
         {
             public string $postmeta = 'wp_postmeta';
 
@@ -153,9 +153,10 @@ describe('uamswp_t2p_build_id_map', function (): void {
                     : [];
             }
         };
+        $GLOBALS['wpdb'] = $wpdb;
 
         expect(uamswp_t2p_build_id_map())->toBe([5 => 10, 6 => 11])
-            ->and($GLOBALS['wpdb']->prepared)->toBe(['SELECT post_id, meta_value FROM wp_postmeta WHERE meta_key = %s', '_migrated_from_tshowcase_id']);
+            ->and($wpdb->prepared)->toBe(['SELECT post_id, meta_value FROM wp_postmeta WHERE meta_key = %s', '_migrated_from_tshowcase_id']);
     });
 
     it('is empty when nothing has been migrated', function (): void {
