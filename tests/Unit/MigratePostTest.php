@@ -14,6 +14,8 @@ use function Brain\Monkey\Functions\when;
 
 /**
  * A tshowcase post as get_post() returns it.
+ *
+ * @param  array<string, mixed>  $overrides
  */
 function t2p_post(array $overrides = []): stdClass
 {
