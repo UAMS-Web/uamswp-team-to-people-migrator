@@ -228,6 +228,71 @@ describe('uamswp_t2p_update_shortcode_locations', function (): void {
         uamswp_t2p_update_shortcode_locations();
     });
 
+    it('leaves a post alone that was deleted since the scan', function (): void {
+        t2p_wpdb([t2p_row(12, '[show-team]', 'Team page')]);
+        when('get_option')->justReturn(false);
+        when('get_edit_post_link')->justReturn('edit');
+        when('get_post')->justReturn();
+
+        Functions\expect('wp_update_post')->never();
+
+        $result = uamswp_t2p_update_shortcode_locations();
+
+        expect($result[0])->toMatchArray(['updated' => false, 'untranslated_ids' => []]);
+    });
+
+    it('leaves a post alone when the regex engine cannot process its content', function (): void {
+        t2p_wpdb([t2p_row(12, '[show-team ids="5"]', 'Team page')]);
+        when('get_option')->justReturn(false);
+        when('get_edit_post_link')->justReturn('edit');
+
+        $limit = ini_get('pcre.backtrack_limit');
+        // The scan has finished by the time the post is read, so only the rewrite meets the limit.
+        when('get_post')->alias(function (int $id): object {
+            ini_set('pcre.backtrack_limit', '1');
+
+            return (object) ['post_content' => '[show-team ids="5"]'];
+        });
+        Functions\expect('wp_update_post')->never();
+
+        try {
+            $result = uamswp_t2p_update_shortcode_locations();
+        } finally {
+            ini_set('pcre.backtrack_limit', (string) $limit);
+        }
+
+        expect($result[0]['updated'])->toBeFalse();
+    });
+
+    it('leaves a widget alone when the regex engine cannot process its content', function (): void {
+        t2p_wpdb([]);
+        $limit = ini_get('pcre.backtrack_limit');
+        $reads = 0;
+        // The second read of the option is the rewrite, after the scan has finished.
+        when('get_option')->alias(function (string $name) use (&$reads): mixed {
+            if ($name !== 'widget_text') {
+                return false;
+            }
+
+            if (++$reads === 2) {
+                ini_set('pcre.backtrack_limit', '1');
+            }
+
+            return [3 => ['text' => '[show-team ids="5"]']];
+        });
+        when('admin_url')->justReturn('widgets');
+
+        Functions\expect('update_option')->never();
+
+        try {
+            $result = uamswp_t2p_update_shortcode_locations();
+        } finally {
+            ini_set('pcre.backtrack_limit', (string) $limit);
+        }
+
+        expect($result[0]['updated'])->toBeFalse();
+    });
+
     it('skips a widget that vanished between the scan and the rewrite', function (): void {
         $GLOBALS['wpdb'] = new class
         {
