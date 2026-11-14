@@ -119,7 +119,7 @@ function uamswp_t2p_get_skip_keys(): array
 /**
  * Reduces a stored Twitter value to the bare handle.
  *
- * @param  mixed  $value  the stored value, usually a profile URL
+ * @param  scalar|null  $value  the stored value, usually a profile URL
  */
 function uamswp_t2p_transform_twitter($value): string
 {
@@ -148,7 +148,7 @@ function uamswp_t2p_transform_twitter($value): string
  * added via that plugin's "Custom Fields" setting.
  *
  * @param  int  $post_id  the source post
- * @return mixed[]
+ * @return array<string, string>
  */
 function uamswp_t2p_get_unmapped_meta($post_id): array
 {
@@ -158,14 +158,22 @@ function uamswp_t2p_get_unmapped_meta($post_id): array
     $all_meta = get_post_meta($post_id);
     $unmapped = [];
 
+    if (! is_array($all_meta)) {
+        return $unmapped;
+    }
+
     foreach ($all_meta as $key => $values) {
+        // The file is not strict_types, so str_starts_with() coerces an integer key itself, and an integer key never starts with _ts, so nothing past the check sees it.
+        // @pest-mutate-ignore:RemoveStringCast
+        $key = (string) $key;
         if (! str_starts_with($key, '_ts')) {
             continue;
         }
         if (in_array($key, $known_src, true) || in_array($key, $skip, true)) {
             continue;
         }
-        $unmapped[$key] = $values[0] ?? '';
+        $first = is_array($values) ? ($values[0] ?? '') : '';
+        $unmapped[$key] = is_scalar($first) ? (string) $first : '';
     }
 
     return $unmapped;
@@ -325,7 +333,7 @@ function uamswp_t2p_guess_sorttext($title)
  *
  * @param  int  $old_post_id  the source post
  * @param  bool  $dry_run  when true, nothing is written
- * @return WP_Error|array<string, mixed>
+ * @return WP_Error|array{old_id: int, title: string, new_id: int|null, meta_mapped: array<string, string>, meta_unmapped: array<string, string>, terms: list<array{taxonomy: string, name: string, created: bool}>, thumbnail: int, warnings?: list<string>}
  */
 function uamswp_t2p_migrate_post(
     $old_post_id,
@@ -626,7 +634,7 @@ function uamswp_t2p_scan_shortcode_locations(): array
  * uamswp_t2p_scan_shortcode_locations(). Returns the same structure with
  * an added 'updated' (bool) and 'untranslated_ids' per location.
  *
- * @return mixed[]
+ * @return list<array{type: 'post', id: int, title: string, post_type: string, edit_link: string|null, matches: array<int, string>, updated: bool, untranslated_ids: list<string>}|array{type: 'widget', id: string, title: string, post_type: string, edit_link: string, matches: array<int, string>, updated: bool, untranslated_ids: list<string>}>
  */
 function uamswp_t2p_update_shortcode_locations(): array
 {
@@ -659,9 +667,10 @@ function uamswp_t2p_update_shortcode_locations(): array
         } else {
             [$option_name, $key] = explode(':', $loc['id'], 2);
             $widgets = get_option($option_name);
-            if (isset($widgets[$key])) {
+            if (is_array($widgets) && isset($widgets[$key]) && is_array($widgets[$key])) {
                 $field = isset($widgets[$key]['content']) ? 'content' : 'text';
-                $text = uamswp_t2p_translate_id_attributes($widgets[$key][$field], $id_map, $untranslated);
+                $stored = $widgets[$key][$field] ?? null;
+                $text = is_string($stored) ? uamswp_t2p_translate_id_attributes($stored, $id_map, $untranslated) : null;
                 $text = $text === null ? null : uamswp_t2p_rename_shortcode_tags($text);
 
                 // Content the regex engine could not process is left as it is.
@@ -685,6 +694,19 @@ function uamswp_t2p_update_shortcode_locations(): array
  * Admin UI
  * --------------------------------------------------------------------- */
 
+/**
+ * A posted field as sanitized text, or an empty string when it is missing or
+ * is not a string (an array posted under the same name, for example).
+ *
+ * @param  string  $key  the POST field name
+ */
+function uamswp_t2p_posted_text(string $key): string
+{
+    $value = isset($_POST[$key]) ? wp_unslash($_POST[$key]) : '';
+
+    return is_string($value) ? sanitize_text_field($value) : '';
+}
+
 function uamswp_t2p_render_admin_page(): void
 {
     if (! current_user_can('manage_options')) {
@@ -698,7 +720,7 @@ function uamswp_t2p_render_admin_page(): void
         return;
     }
 
-    $action = isset($_POST['uamswp_t2p_action']) ? sanitize_text_field(wp_unslash($_POST['uamswp_t2p_action'])) : '';
+    $action = uamswp_t2p_posted_text('uamswp_t2p_action');
     $force = isset($_POST['uamswp_t2p_force']);
     $results = [];
     // Only read while results is non-empty, and every path that fills results assigns it first, so this starting value is never used.
@@ -717,7 +739,7 @@ function uamswp_t2p_render_admin_page(): void
     $pending_count = count(uamswp_t2p_get_pending_posts(-1, $force));
 
     // Shortcode finder/updater - separate form/nonce on the same page.
-    $sc_action = isset($_POST['uamswp_t2p_sc_action']) ? sanitize_text_field(wp_unslash($_POST['uamswp_t2p_sc_action'])) : '';
+    $sc_action = uamswp_t2p_posted_text('uamswp_t2p_sc_action');
     $sc_locations = [];
     $sc_did_update = false;
 
@@ -788,12 +810,12 @@ function uamswp_t2p_render_admin_page(): void
 						<tr>
 							<td>
 								<a href="<?php echo esc_url(get_edit_post_link($r['old_id']) ?? ''); ?>">
-									#<?php echo esc_html($r['old_id']); ?> - <?php echo esc_html($r['title']); ?>
+									#<?php echo esc_html(sprintf('%d', $r['old_id'])); ?> - <?php echo esc_html($r['title']); ?>
 								</a>
 							</td>
 							<td>
 								<?php if ($r['new_id']) { ?>
-									<a href="<?php echo esc_url(get_edit_post_link($r['new_id']) ?? ''); ?>">#<?php echo esc_html($r['new_id']); ?></a>
+									<a href="<?php echo esc_url(get_edit_post_link($r['new_id']) ?? ''); ?>">#<?php echo esc_html(sprintf('%d', $r['new_id'])); ?></a>
 								<?php } else { ?>
 									<em><?php esc_html_e('(preview only - not created)', 'uamswp-t2p'); ?></em>
 								<?php } ?>

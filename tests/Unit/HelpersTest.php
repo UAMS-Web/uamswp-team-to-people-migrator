@@ -53,7 +53,7 @@ it('maps each Team Showcase taxonomy to its People Showcase twin', function (): 
     ]);
 });
 
-it('reduces a Twitter value to a handle', function (mixed $stored, string $handle): void {
+it('reduces a Twitter value to a handle', function (int|string|null $stored, string $handle): void {
     when('wp_parse_url')->alias('parse_url');
 
     expect(uamswp_t2p_transform_twitter($stored))->toBe($handle);
@@ -161,6 +161,24 @@ it('returns no unmapped meta for a post with none', function (): void {
     when('get_post_meta')->justReturn([]);
 
     expect(uamswp_t2p_get_unmapped_meta(7))->toBe([]);
+});
+
+it('returns no unmapped meta when WordPress has no meta array to give', function (): void {
+    when('wp_list_pluck')->alias('array_column');
+    when('get_post_meta')->justReturn('');
+
+    expect(uamswp_t2p_get_unmapped_meta(7))->toBe([]);
+});
+
+it('reads a meta value that is not a list, or whose first entry is not a scalar, as empty', function (): void {
+    when('wp_list_pluck')->alias('array_column');
+    when('get_post_meta')->justReturn([
+        '_tsbare' => 'not a list',
+        '_tsnested' => [['an', 'array']],
+        '_tsnumber' => [5],
+    ]);
+
+    expect(uamswp_t2p_get_unmapped_meta(7))->toBe(['_tsbare' => '', '_tsnested' => '', '_tsnumber' => '5']);
 });
 
 it('queries the posts not yet migrated, oldest first', function (): void {
