@@ -188,8 +188,8 @@ describe('uamswp_t2p_update_shortcode_locations', function (): void {
         };
         when('get_option')->justReturn(false);
         when('get_edit_post_link')->justReturn('edit');
-        when('get_post')->alias(fn (int $id): object => (object) ['post_content' => '[show-team ids="5,9"]']);
-        Functions\expect('wp_update_post')->once()->with(Mockery::mustBe(['ID' => 12, 'post_content' => '[show-people ids="50,9"]']));
+        when('get_post')->alias(fn (int $id): object => (object) ['post_content' => '[show-team ids="5,9"] [contact-form ids="5"]']);
+        Functions\expect('wp_update_post')->once()->with(Mockery::mustBe(['ID' => 12, 'post_content' => '[show-people ids="50,9"] [contact-form ids="5"]']));
         Functions\expect('update_option')->never();
 
         $result = uamswp_t2p_update_shortcode_locations();
