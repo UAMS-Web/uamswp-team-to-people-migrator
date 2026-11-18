@@ -461,8 +461,8 @@ function uamswp_t2p_migrate_post(
  * Renames [show-team...] shortcodes to [show-people...] wherever they
  * appear in post_content (any post type/status except Trash) and in the
  * two core text-based widgets. The main [show-team] shortcode is the
- * only one that takes post-ID lists (ids="" / exclude=""), so those are
- * translated through the migration mapping built up by
+ * only one that takes post-ID lists (ids="" / exclude=""), so those (and
+ * only those inside a [show-team ...] tag) are translated through the migration mapping built up by
  * uamswp_t2p_migrate_post() - a Team post ID in that attribute becomes
  * the matching People post ID if (and only if) that post has already
  * been migrated.
@@ -595,10 +595,15 @@ function uamswp_t2p_translate_id_match(array $matches, array $id_map, array &$un
 }
 
 /**
- * Within ids="" / exclude="" attribute values on the main shortcode,
- * translates comma-separated Team post IDs to their new People post IDs.
- * IDs with no migration record yet are left as-is and reported back so
- * they can be reviewed by hand.
+ * Within ids="" / exclude="" attribute values on the main [show-team]
+ * shortcode, translates comma-separated Team post IDs to their new People
+ * post IDs. IDs with no migration record yet are left as-is and reported
+ * back so they can be reviewed by hand.
+ *
+ * Only attributes inside a [show-team ...] opening tag are read. Another
+ * shortcode in the same content may carry an ids="" or exclude="" list of
+ * something other than Team posts (forms, users, terms), and the suffixed
+ * show-team shortcodes do not take post-ID lists, so neither is touched.
  *
  * @param  string  $content  the content to rewrite
  * @param  array<int, int>  $id_map  old post ID => new post ID
@@ -608,7 +613,7 @@ function uamswp_t2p_translate_id_attributes($content, $id_map, &$untranslated): 
 {
     $untranslated = [];
 
-    $callback = function (array $matches) use ($id_map, &$untranslated): string {
+    $attribute = function (array $matches) use ($id_map, &$untranslated): string {
         // preg_replace_callback() passes strings only, so mapping them through the string reader changes nothing and only gives the array its type.
         // @pest-mutate-ignore:UnwrapArrayMap
         $parts = array_map(uamswp_t2p_string(...), $matches);
@@ -616,9 +621,21 @@ function uamswp_t2p_translate_id_attributes($content, $id_map, &$untranslated): 
         return uamswp_t2p_translate_id_match($parts, $id_map, $untranslated);
     };
 
+    $tag = function (array $matches) use ($attribute): string {
+        $whole = uamswp_t2p_string($matches[0]);
+
+        // The tag already matched the outer pattern, so the attribute pattern cannot fail on it; the fallback only gives the result its type.
+        return preg_replace_callback(
+            '/\b(ids|exclude)\s*=\s*(["\'])([0-9,\s]+)\2/',
+            $attribute,
+            $whole
+        ) ?? $whole;
+    };
+
+    // The main shortcode only: "[show-team" followed by neither a word character nor a hyphen, so [show-team-users ...] is not read.
     return preg_replace_callback(
-        '/\b(ids|exclude)\s*=\s*(["\'])([0-9,\s]+)\2/',
-        $callback,
+        '/\[show-team(?![\w-])[^\]]*\]/',
+        $tag,
         $content
     );
 }

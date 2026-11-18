@@ -115,6 +115,12 @@ it('translates ids and exclude lists through the migration map', function (strin
     'a list with letters is not touched' => ['[show-team ids="1,a"]', '[show-team ids="1,a"]', []],
     'mismatched quotes are not touched' => ['[show-team ids="1\']', '[show-team ids="1\']', []],
     'no attribute' => ['[show-team]', '[show-team]', []],
+    'another shortcode in the same content is not touched' => ['[contact-form ids="1"] [show-team ids="1"] [gallery exclude="2"]', '[contact-form ids="1"] [show-team ids="10"] [gallery exclude="2"]', []],
+    'an unmapped id outside a show-team tag is not reported' => ['[contact-form ids="5"] [show-team ids="1"]', '[contact-form ids="5"] [show-team ids="10"]', []],
+    'a suffixed show-team shortcode is not touched' => ['[show-team-users ids="1"]', '[show-team-users ids="1"]', []],
+    'a tag name that only starts with show-team is not touched' => ['[show-teams ids="1"]', '[show-teams ids="1"]', []],
+    'an attribute in plain text is not touched' => ['ids="1" [show-team]', 'ids="1" [show-team]', []],
+    'every show-team tag is translated' => ['[show-team ids="1"] text [show-team exclude="2"]', '[show-team ids="10"] text [show-team exclude="20"]', []],
 ]);
 
 it('starts each translation with an empty untranslated list', function (): void {
